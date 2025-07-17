@@ -1,0 +1,353 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trình quản lý Website AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- CSS Styling --- */
+        :root {
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --danger-color: #dc3545;
+            --success-color: #28a745;
+            --light-gray: #f8f9fa;
+            --border-color: #dee2e6;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #1c1e21;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 25px;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: var(--primary-hover);
+            text-align: center;
+            margin-bottom: 25px;
+            font-weight: 700;
+        }
+
+        /* --- Form and Controls --- */
+        #ai-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-control, .btn {
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: 'Inter', sans-serif;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+        }
+        
+        .btn {
+            cursor: pointer;
+            font-weight: 500;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, var(--primary-color), var(--primary-hover));
+            color: white;
+            border: none;
+        }
+        
+        /* --- Search and Data Actions --- */
+        .actions-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 25px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+        }
+        #search-box {
+            flex-grow: 1;
+        }
+        .btn-success { background-color: var(--success-color); color: white; border: none; }
+        .btn-secondary { background-color: #6c757d; color: white; border: none; }
+
+        /* --- List Styling --- */
+        #ai-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .list-item {
+            background: var(--light-gray);
+            padding: 15px 20px;
+            border: 1px solid #e9ebee;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+        .item-info { flex-grow: 1; }
+        .item-info a { text-decoration: none; color: var(--primary-color); font-weight: 500; font-size: 17px; }
+        .item-description { font-size: 14px; color: #606770; margin: 5px 0 0 0; }
+        .item-actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .btn-edit { background-color: #ffc107; color: #212529; border: none; padding: 8px 12px; border-radius: 6px; }
+        .btn-delete { background-color: var(--danger-color); color: white; border: none; padding: 8px 12px; border-radius: 6px; }
+
+        /* --- Modal Styling --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: none; /* Hidden by default */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .modal-content h2 { margin-top: 0; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Trình quản lý Website AI</h1>
+        
+        <form id="ai-form">
+            <input type="text" id="ai-name" class="form-control" placeholder="Tên trang web (ví dụ: Midjourney)" required>
+            <input type="url" id="ai-url" class="form-control" placeholder="Đường dẫn (URL)" required>
+            <input type="text" id="ai-description" class="form-control" placeholder="Mô tả ngắn (ví dụ: Tạo ảnh từ văn bản)" required>
+            <button type="submit" class="btn btn-primary">Thêm Website</button>
+        </form>
+
+        <div class="actions-toolbar">
+            <input type="text" id="search-box" class="form-control" placeholder="🔍 Tìm kiếm theo tên hoặc mô tả...">
+            <button id="export-btn" class="btn btn-success">Xuất ra CSV</button>
+            <label for="import-file" class="btn btn-secondary">Nhập từ CSV</label>
+            <input type="file" id="import-file" accept=".csv" style="display: none;">
+        </div>
+
+        <ul id="ai-list">
+            <!-- JavaScript will populate this list -->
+        </ul>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Chỉnh sửa Website</h2>
+            <form id="edit-form">
+                <input type="hidden" id="edit-index">
+                <p><input type="text" id="edit-name" class="form-control" required></p>
+                <p><input type="url" id="edit-url" class="form-control" required></p>
+                <p><input type="text" id="edit-description" class="form-control" required></p>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                    <button type="button" id="cancel-edit" class="btn btn-secondary">Hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- Element References ---
+        const aiForm = document.getElementById('ai-form');
+        const aiNameInput = document.getElementById('ai-name');
+        const aiUrlInput = document.getElementById('ai-url');
+        const aiDescriptionInput = document.getElementById('ai-description');
+        const aiList = document.getElementById('ai-list');
+        const searchBox = document.getElementById('search-box');
+        const exportBtn = document.getElementById('export-btn');
+        const importFile = document.getElementById('import-file');
+        const editModal = document.getElementById('edit-modal');
+        const editForm = document.getElementById('edit-form');
+        const cancelEditBtn = document.getElementById('cancel-edit');
+
+        // --- State Management ---
+        let websites = JSON.parse(localStorage.getItem('ai_websites_v3')) || [];
+        
+        // --- Core Functions ---
+        const saveWebsites = () => {
+            localStorage.setItem('ai_websites_v3', JSON.stringify(websites));
+        };
+
+        const renderWebsites = (filter = '') => {
+            aiList.innerHTML = '';
+            const lowercasedFilter = filter.toLowerCase();
+
+            const filteredWebsites = websites.filter(site => 
+                site.name.toLowerCase().includes(lowercasedFilter) || 
+                site.description.toLowerCase().includes(lowercasedFilter)
+            );
+
+            filteredWebsites.forEach(site => {
+                const originalIndex = websites.findIndex(originalSite => originalSite === site);
+                const listItem = document.createElement('li');
+                listItem.className = 'list-item';
+
+                listItem.innerHTML = `
+                    <div class="item-info">
+                        <a href="${site.url}" target="_blank">${site.name}</a>
+                        <p class="item-description">${site.description}</p>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn-edit" data-index="${originalIndex}">Sửa</button>
+                        <button class="btn-delete" data-index="${originalIndex}">Xóa</button>
+                    </div>
+                `;
+                aiList.appendChild(listItem);
+            });
+        };
+
+        // --- Event Listeners ---
+        aiForm.addEventListener('submit', e => {
+            e.preventDefault();
+            const name = aiNameInput.value.trim();
+            const url = aiUrlInput.value.trim();
+            const description = aiDescriptionInput.value.trim();
+            if (name && url && description) {
+                websites.push({ name, url, description });
+                saveAndRender();
+                aiForm.reset();
+                aiNameInput.focus();
+            }
+        });
+
+        aiList.addEventListener('click', e => {
+            if (e.target.classList.contains('btn-delete')) {
+                const index = e.target.dataset.index;
+                websites.splice(index, 1);
+                saveAndRender();
+            }
+            if (e.target.classList.contains('btn-edit')) {
+                const index = e.target.dataset.index;
+                openEditModal(index);
+            }
+        });
+
+        searchBox.addEventListener('input', () => {
+            renderWebsites(searchBox.value);
+        });
+
+        // --- Edit Modal Logic ---
+        const openEditModal = (index) => {
+            const site = websites[index];
+            document.getElementById('edit-index').value = index;
+            document.getElementById('edit-name').value = site.name;
+            document.getElementById('edit-url').value = site.url;
+            document.getElementById('edit-description').value = site.description;
+            editModal.style.display = 'flex';
+        };
+
+        const closeEditModal = () => {
+            editModal.style.display = 'none';
+        };
+
+
+        editForm.addEventListener('submit', e => {
+            e.preventDefault();
+            const index = document.getElementById('edit-index').value;
+            websites[index] = {
+                name: document.getElementById('edit-name').value.trim(),
+                url: document.getElementById('edit-url').value.trim(),
+                description: document.getElementById('edit-description').value.trim()
+            };
+            saveAndRender();
+            closeEditModal();
+        });
+
+        cancelEditBtn.addEventListener('click', closeEditModal);
+
+        // --- Import/Export Logic ---
+        exportBtn.addEventListener('click', () => {
+            let csvContent = "data:text/csv;charset=utf-8,Tên,Đường dẫn,Mô tả\n";
+            websites.forEach(site => {
+                csvContent += `"${site.name}","${site.url}","${site.description}"\n`;
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "ai_websites.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        importFile.addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const csv = event.target.result;
+                const lines = csv.split('\n').filter(line => line.trim() !== '');
+                if (lines.length <= 1) {
+                    alert('Tệp CSV trống hoặc không hợp lệ.');
+                    return;
+                }
+                const importedWebsites = [];
+                // Bỏ qua dòng tiêu đề (dòng đầu tiên)
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || [];
+                    if (values.length === 3) {
+                        importedWebsites.push({
+                            name: values[0].replace(/"/g, ''),
+                            url: values[1].replace(/"/g, ''),
+                            description: values[2].replace(/"/g, '')
+                        });
+                    }
+                }
+                websites = importedWebsites; // Ghi đè danh sách cũ
+                saveAndRender();
+            };
+            reader.readAsText(file);
+            importFile.value = ''; // Reset để có thể chọn lại cùng 1 tệp
+        });
+        
+        // --- Utility and Initial Load ---
+        const saveAndRender = () => {
+            saveWebsites();
+            renderWebsites(searchBox.value);
+        };
+
+        renderWebsites();
+    });
+    </script>
+
+</body>
+</html>
