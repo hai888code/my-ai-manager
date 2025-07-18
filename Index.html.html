@@ -1,0 +1,186 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trình quản lý Website AI (Firebase Sync)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* CSS không thay đổi, giữ nguyên như phiên bản trước */
+        :root {
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --danger-color: #dc3545;
+            --success-color: #28a745;
+            --light-gray: #f8f9fa;
+            --border-color: #dee2e6;
+        }
+        body { font-family: 'Inter', sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 30px auto; padding: 25px; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); }
+        h1 { color: var(--primary-hover); text-align: center; margin-bottom: 25px; font-weight: 700; }
+        #ai-form { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
+        .form-control, .btn { padding: 12px 15px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 16px; font-family: 'Inter', sans-serif; width: 100%; box-sizing: border-box; }
+        .form-control:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); }
+        .btn { cursor: pointer; font-weight: 500; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .btn:hover { transform: translateY(-2px); }
+        .btn-primary { background: linear-gradient(45deg, var(--primary-color), var(--primary-hover)); color: white; border: none; }
+        #ai-list { list-style-type: none; padding: 0; }
+        .list-item { background: var(--light-gray); padding: 15px 20px; border: 1px solid #e9ebee; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .item-info { flex-grow: 1; }
+        .item-info a { text-decoration: none; color: var(--primary-color); font-weight: 500; font-size: 17px; }
+        .item-description { font-size: 14px; color: #606770; margin: 5px 0 0 0; }
+        .item-actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .btn-edit { background-color: #ffc107; color: #212529; border: none; padding: 8px 12px; border-radius: 6px; }
+        .btn-delete { background-color: var(--danger-color); color: white; border: none; padding: 8px 12px; border-radius: 6px; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 500px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .modal-content h2 { margin-top: 0; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-secondary { background-color: #6c757d; color: white; border: none; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Trình quản lý Website AI (Đồng bộ)</h1>
+        
+        <form id="ai-form">
+            <input type="text" id="ai-name" class="form-control" placeholder="Tên trang web" required>
+            <input type="url" id="ai-url" class="form-control" placeholder="Đường dẫn (URL)" required>
+            <input type="text" id="ai-description" class="form-control" placeholder="Mô tả ngắn" required>
+            <button type="submit" class="btn btn-primary">Thêm Website</button>
+        </form>
+
+        <ul id="ai-list">
+            <!-- Dữ liệu từ Firebase sẽ được hiển thị ở đây -->
+        </ul>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Chỉnh sửa Website</h2>
+            <form id="edit-form">
+                <input type="hidden" id="edit-id">
+                <p><input type="text" id="edit-name" class="form-control" required></p>
+                <p><input type="url" id="edit-url" class="form-control" required></p>
+                <p><input type="text" id="edit-description" class="form-control" required></p>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                    <button type="button" id="cancel-edit" class="btn btn-secondary">Hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Import Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-firestore-compat.js"></script>
+
+    <script>
+    // --- BƯỚC 1: DÁN FIREBASE CONFIG CỦA BẠN VÀO ĐÂY ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyDYbLGwagXhh2GF7cIwq1QuJ_sktQAc4RM",
+      authDomain: "my-ai-manager.firebaseapp.com",
+      projectId: "my-ai-manager",
+      storageBucket: "my-ai-manager.appspot.com",
+      messagingSenderId: "895137521835",
+      appId: "1:895137521835:web:e67a4700bb372c0a75d7ee",
+      measurementId: "G-SVWQ78ZEEP"
+    };
+
+    // --- BƯỚC 2: KHỞI TẠO FIREBASE ---
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const websitesCollection = db.collection('websites');
+
+    // --- Element References ---
+    const aiForm = document.getElementById('ai-form');
+    const aiList = document.getElementById('ai-list');
+    const editModal = document.getElementById('edit-modal');
+    const editForm = document.getElementById('edit-form');
+    const cancelEditBtn = document.getElementById('cancel-edit');
+
+    // --- Real-time Data Listener ---
+    websitesCollection.orderBy('name').onSnapshot(snapshot => {
+        const websites = [];
+        snapshot.forEach(doc => {
+            websites.push({ ...doc.data(), id: doc.id });
+        });
+        renderWebsites(websites);
+    });
+
+    const renderWebsites = (websites) => {
+        aiList.innerHTML = '';
+        websites.forEach(site => {
+            const listItem = document.createElement('li');
+            listItem.className = 'list-item';
+            listItem.innerHTML = `
+                <div class="item-info">
+                    <a href="${site.url}" target="_blank">${site.name}</a>
+                    <p class="item-description">${site.description}</p>
+                </div>
+                <div class="item-actions">
+                    <button class="btn-edit" data-id="${site.id}">Sửa</button>
+                    <button class="btn-delete" data-id="${site.id}">Xóa</button>
+                </div>
+            `;
+            aiList.appendChild(listItem);
+        });
+    };
+
+    // --- CRUD Operations ---
+    aiForm.addEventListener('submit', e => {
+        e.preventDefault();
+        const name = document.getElementById('ai-name').value.trim();
+        const url = document.getElementById('ai-url').value.trim();
+        const description = document.getElementById('ai-description').value.trim();
+        if (name && url && description) {
+            websitesCollection.add({ name, url, description });
+            aiForm.reset();
+        }
+    });
+
+    aiList.addEventListener('click', e => {
+        const id = e.target.dataset.id;
+        if (!id) return;
+
+        if (e.target.classList.contains('btn-delete')) {
+            if (confirm('Bạn có chắc chắn muốn xóa không?')) {
+                websitesCollection.doc(id).delete();
+            }
+        }
+        if (e.target.classList.contains('btn-edit')) {
+            websitesCollection.doc(id).get().then(doc => {
+                const site = doc.data();
+                document.getElementById('edit-id').value = doc.id;
+                document.getElementById('edit-name').value = site.name;
+                document.getElementById('edit-url').value = site.url;
+                document.getElementById('edit-description').value = site.description;
+                editModal.style.display = 'flex';
+            });
+        }
+    });
+    
+    // --- Edit Modal Logic ---
+    editForm.addEventListener('submit', e => {
+        e.preventDefault();
+        const id = document.getElementById('edit-id').value;
+        const updatedData = {
+            name: document.getElementById('edit-name').value.trim(),
+            url: document.getElementById('edit-url').value.trim(),
+            description: document.getElementById('edit-description').value.trim()
+        };
+        websitesCollection.doc(id).update(updatedData);
+        editModal.style.display = 'none';
+    });
+    
+    cancelEditBtn.addEventListener('click', () => {
+        editModal.style.display = 'none';
+    });
+
+    </script>
+</body>
+</html>
