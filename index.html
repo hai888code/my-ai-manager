@@ -264,16 +264,36 @@
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } };
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`Lỗi API: ${response.statusText}`);
+            
             const result = await response.json();
-            if (result.candidates && result.candidates.length > 0) {
-                const text = result.candidates[0].content.parts[0].text;
-                const data = JSON.parse(text);
-                aiNameInput.value = data.name || '';
-                aiDescriptionInput.value = data.description || '';
-            } else { throw new Error('Không nhận được phản hồi hợp lệ từ Gemini.'); }
+
+            // --- PHẦN SỬA LỖI ---
+            if (result.candidates && result.candidates.length > 0 && result.candidates[0].content.parts[0].text) {
+                let text = result.candidates[0].content.parts[0].text;
+                // Đôi khi AI trả về JSON trong một khối markdown, cần phải làm sạch nó
+                if (text.startsWith('```json')) {
+                    text = text.substring(7, text.length - 3).trim();
+                }
+                try {
+                    const data = JSON.parse(text);
+                    aiNameInput.value = data.name || '';
+                    aiDescriptionInput.value = data.description || '';
+                } catch (parseError) {
+                    console.error("Lỗi phân tích JSON từ Gemini:", parseError);
+                    console.error("Dữ liệu nhận được:", text);
+                    throw new Error('Gemini đã trả về một định dạng không hợp lệ.');
+                }
+            } else {
+                if (result.promptFeedback && result.promptFeedback.blockReason) {
+                     throw new Error(`Yêu cầu bị chặn: ${result.promptFeedback.blockReason}`);
+                }
+                throw new Error('Không nhận được phản hồi hợp lệ từ Gemini.');
+            }
+            // --- KẾT THÚC PHẦN SỬA LỖI ---
+
         } catch (error) {
             console.error('Lỗi khi gọi Gemini API:', error);
-            alert('Đã có lỗi xảy ra khi cố gắng gợi ý thông tin. Vui lòng thử lại.');
+            alert(`Đã có lỗi xảy ra: ${error.message}`);
         } finally {
             geminiFillBtn.disabled = false;
             geminiFillBtn.innerHTML = '🪄';
@@ -297,7 +317,7 @@
             const faviconUrl = `https://www.google.com/s2/favicons?sz=64&domain_url=${site.url}`;
             card.innerHTML = `
                 <div class="card-header">
-                    <img src="${faviconUrl}" alt="Favicon" class="card-favicon" onerror="this.src='https://placehold.co/64x64/f0f2f5/a0aec0?text=AI'">
+                    <img src="${faviconUrl}" alt="Favicon" class="card-favicon" onerror="this.src='[https://placehold.co/64x64/f0f2f5/a0aec0?text=AI](https://placehold.co/64x64/f0f2f5/a0aec0?text=AI)'">
                     <a href="${site.url}" target="_blank" class="card-name" title="${site.name}">${site.name}</a>
                 </div>
                 <div class="card-body">
@@ -305,10 +325,10 @@
                 </div>
                 <div class="card-footer">
                     <button class="icon-btn btn-edit" data-id="${site.id}" title="Sửa">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
+                        <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
                     </button>
                     <button class="icon-btn btn-delete" data-id="${site.id}" title="Xóa">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                        <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                     </button>
                 </div>
             `;
