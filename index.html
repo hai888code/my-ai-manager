@@ -91,18 +91,7 @@
         .form-control, .btn { padding: 12px 16px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 16px; font-family: 'Inter', sans-serif; width: 100%; box-sizing: border-box; background-color: var(--bg-color); color: var(--text-primary); transition: all 0.2s ease; }
         .form-control::placeholder { color: var(--text-secondary); }
         .form-control:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px var(--primary-color_alpha, rgba(59, 130, 246, 0.3)); }
-        .url-input-group { display: flex; gap: 8px; align-items: center; }
-        #gemini-fill-btn {
-            flex-shrink: 0; width: 44px; height: 44px; padding: 0; font-size: 20px;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .loader {
-            width: 18px; height: 18px; border: 2px solid currentColor;
-            border-bottom-color: transparent; border-radius: 50%;
-            display: inline-block; box-sizing: border-box;
-            animation: spin 1s linear infinite;
-        }
-
+        
         .btn { cursor: pointer; font-weight: 600; }
         .btn-primary { background-color: var(--primary-color); color: white; border: none; }
         .btn-primary:hover { background-color: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
@@ -159,10 +148,7 @@
         
         <form id="ai-form">
             <input type="text" id="ai-name" class="form-control" placeholder="Tên trang web" required>
-            <div class="url-input-group">
-                <input type="url" id="ai-url" class="form-control" placeholder="Dán đường dẫn (URL) vào đây" required>
-                <button type="button" id="gemini-fill-btn" class="btn btn-primary" title="Gợi ý tự động với Gemini">🪄</button>
-            </div>
+            <input type="url" id="ai-url" class="form-control" placeholder="Dán đường dẫn (URL) vào đây" required>
             <input type="text" id="ai-description" class="form-control" placeholder="Mô tả ngắn" required>
             <button type="submit" class="btn btn-primary">Thêm Website</button>
         </form>
@@ -236,8 +222,7 @@
     const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
     const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
     const themeToggleBtn = document.getElementById('theme-toggle-btn');
-    const geminiFillBtn = document.getElementById('gemini-fill-btn');
-
+    
     let idToDelete = null; // Variable to store the ID of the item to be deleted
 
     // --- Theme Toggling Logic ---
@@ -247,58 +232,6 @@
         localStorage.setItem('theme', theme);
     };
     themeToggleBtn.addEventListener('click', () => setTheme(document.body.classList.contains('dark-mode') ? 'light' : 'dark'));
-
-    // --- Gemini API Logic ---
-    geminiFillBtn.addEventListener('click', async () => {
-        const url = aiUrlInput.value.trim();
-        if (!url) {
-            alert('Vui lòng nhập đường dẫn URL trước.');
-            return;
-        }
-        geminiFillBtn.disabled = true;
-        geminiFillBtn.innerHTML = `<div class="loader"></div>`;
-        const prompt = `Dựa vào URL sau: "${url}", hãy đề xuất tên và mô tả ngắn gọn cho công cụ AI này. Trả về kết quả dưới dạng một đối tượng JSON hợp lệ với các khóa là "name" và "description". Ví dụ: {"name": "Tên Công Cụ", "description": "Đây là mô tả."}`;
-        try {
-            const apiKey = ""; // Canvas will provide the API key
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } };
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!response.ok) throw new Error(`Lỗi API: ${response.statusText}`);
-            
-            const result = await response.json();
-
-            // --- PHẦN SỬA LỖI ---
-            if (result.candidates && result.candidates.length > 0 && result.candidates[0].content.parts[0].text) {
-                let text = result.candidates[0].content.parts[0].text;
-                // Đôi khi AI trả về JSON trong một khối markdown, cần phải làm sạch nó
-                if (text.startsWith('```json')) {
-                    text = text.substring(7, text.length - 3).trim();
-                }
-                try {
-                    const data = JSON.parse(text);
-                    aiNameInput.value = data.name || '';
-                    aiDescriptionInput.value = data.description || '';
-                } catch (parseError) {
-                    console.error("Lỗi phân tích JSON từ Gemini:", parseError);
-                    console.error("Dữ liệu nhận được:", text);
-                    throw new Error('Gemini đã trả về một định dạng không hợp lệ.');
-                }
-            } else {
-                if (result.promptFeedback && result.promptFeedback.blockReason) {
-                     throw new Error(`Yêu cầu bị chặn: ${result.promptFeedback.blockReason}`);
-                }
-                throw new Error('Không nhận được phản hồi hợp lệ từ Gemini.');
-            }
-            // --- KẾT THÚC PHẦN SỬA LỖI ---
-
-        } catch (error) {
-            console.error('Lỗi khi gọi Gemini API:', error);
-            alert(`Đã có lỗi xảy ra: ${error.message}`);
-        } finally {
-            geminiFillBtn.disabled = false;
-            geminiFillBtn.innerHTML = '🪄';
-        }
-    });
 
     // --- Real-time Data Listener ---
     websitesCollection.orderBy('name').onSnapshot(snapshot => {
@@ -317,7 +250,7 @@
             const faviconUrl = `https://www.google.com/s2/favicons?sz=64&domain_url=${site.url}`;
             card.innerHTML = `
                 <div class="card-header">
-                    <img src="${faviconUrl}" alt="Favicon" class="card-favicon" onerror="this.src='[https://placehold.co/64x64/f0f2f5/a0aec0?text=AI](https://placehold.co/64x64/f0f2f5/a0aec0?text=AI)'">
+                    <img src="${faviconUrl}" alt="Favicon" class="card-favicon" onerror="this.src='https://placehold.co/64x64/f0f2f5/a0aec0?text=AI'">
                     <a href="${site.url}" target="_blank" class="card-name" title="${site.name}">${site.name}</a>
                 </div>
                 <div class="card-body">
@@ -325,10 +258,10 @@
                 </div>
                 <div class="card-footer">
                     <button class="icon-btn btn-edit" data-id="${site.id}" title="Sửa">
-                        <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
                     </button>
                     <button class="icon-btn btn-delete" data-id="${site.id}" title="Xóa">
-                        <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                     </button>
                 </div>
             `;
